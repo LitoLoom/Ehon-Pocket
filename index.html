@@ -85,21 +85,19 @@
             ageQuery = "4歳 5歳 児童";
         }
     
-        // 2. タグごとの調整
+        // 2. カテゴリのキーワード
         let categoryQuery = selectedTag;
-        if(selectedTag === "音読") categoryQuery = "オノマトペ";
-        if(selectedTag === "カラフル") categoryQuery = "board book color"; // 赤ちゃん向けはboard book(厚紙本)を指定すると精度UP
+        if(selectedTag === "音読") categoryQuery = "オノマトペ ことばあそび";
+        if(selectedTag === "カラフル") categoryQuery = "色 赤ちゃん";
+        if(selectedTag === "図鑑") categoryQuery = "図鑑 子供";
     
-        // 3. 大人向け・研究本を徹底的に弾くためのマイナス検索
-        const excludeWords = "-解説 -研究 -ムック -指導書 -論文 -教材 -workbook";
-        
-        // 4. キーワードの合体
-        // 「intitle:絵本」とすることで、タイトルに「絵本」が入っているものを優先
-        let searchTerms = `intitle:絵本 ${ageQuery} ${categoryQuery} ${freeWord} ${excludeWords}`;
+        // 3. 全体クエリの組み立て（複雑なコマンドを使わず、単語を並べる）
+        // 検索窓が空なら「絵本」をメインに、何か入っていればそれをメインにする
+        let searchTerms = `絵本 ${ageQuery} ${categoryQuery} ${freeWord}`;
         
         const query = encodeURIComponent(searchTerms);
-        // 児童書(juvenile)ジャンルを指定するフィルタを追加
-        const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=20&printType=books&langRestrict=ja&orderBy=relevance`;
+        // langRestrictを「ja」に、printTypeを「books」にするだけで十分です
+        const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=20&printType=books&langRestrict=ja`;
     
         listContainer.innerHTML = `<div class="flex justify-center py-10"><div class="animate-spin h-8 w-8 border-4 border-orange-500 rounded-full border-t-transparent"></div></div>`;
     
@@ -107,26 +105,27 @@
             const response = await fetch(apiUrl);
             const data = await response.json();
             
-            if (!data.items) {
-                listContainer.innerHTML = `<div class="text-center text-gray-500 py-10">見つからなかったよ。条件を少し減らしてみてね。</div>`;
+            if (!data.items || data.items.length === 0) {
+                listContainer.innerHTML = `<div class="text-center text-gray-500 py-10">
+                    本が見つかりませんでした。<br>
+                    <span class="text-xs">「指定しない」にしたり、言葉を短くしてみてね。</span>
+                </div>`;
                 return;
             }
     
-            // さらに精度を上げるため、ページ数が100ページ以上のものは一覧から除外する（JavaScript側でのフィルタ）
+            // ページ数によるフィルタリング（150ページ以上に少し緩めます）
             currentBooks = data.items.filter(book => {
                 const pc = book.volumeInfo.pageCount;
-                return !pc || pc < 100; 
+                return !pc || pc < 150; 
             });
     
             renderBooks();
     
         } catch (error) {
-            listContainer.innerHTML = "エラーが発生しました。";
+            listContainer.innerHTML = "エラーが発生しました。時間を置いて試してね。";
         }
     }
 
-
-    
     // 描画だけを担当する関数（APIを叩かない）
     function renderBooks() {
         const listContainer = document.getElementById('bookList');
