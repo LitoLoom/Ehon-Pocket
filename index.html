@@ -75,14 +75,14 @@
         const freeWord = document.getElementById('freeWord').value;
         const listContainer = document.getElementById('bookList');
         
-        // 1. 年齢をAPIが理解しやすい英語キーワードに変換
+        // 1. 年齢キーワード（もっともヒットしやすい日本語の羅列にする）
         let ageQuery = "";
         if (ageValue === "0-1") {
-            ageQuery = '"0 age" OR "1 age" OR "0 years old" OR "1 years old"';
+            ageQuery = "0歳 1歳 赤ちゃん";
         } else if (ageValue === "2-3") {
-            ageQuery = '"2 age" OR "3 age" OR "2 years old" OR "3 years old"';
+            ageQuery = "2歳 3歳 幼児";
         } else if (ageValue === "4-5") {
-            ageQuery = '"4 age" OR "5 age" OR "4 years old" OR "5 years old"';
+            ageQuery = "4歳 5歳 児童";
         }
     
         // 2. タグごとの調整
