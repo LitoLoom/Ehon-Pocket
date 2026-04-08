@@ -43,8 +43,9 @@
     </div>
 
 <script>
-    const tags = ["乗り物", "動物", "食べ物", "カラフル", "図鑑", "音読"];
-    let selectedTag = "乗り物";
+    // 1. タグの定義を更新
+    const tags = [ "のりもの", "いきもの", "しつけ", "おやすみ", "わらえる","たべもの", "ことば・音", "ぼうけん"];
+    let selectedTag = "のりもの";
     let readList = JSON.parse(localStorage.getItem('readBooks') || '[]');
 
     // タグボタンの生成
@@ -70,52 +71,51 @@
     let currentBooks = [];
 
     async function searchBooks() {
-        const ageSelect = document.getElementById('age');
-        const ageValue = ageSelect.value;
+        const ageValue = document.getElementById('age').value;
         const freeWord = document.getElementById('freeWord').value;
         const listContainer = document.getElementById('bookList');
         
-        // 1. 年齢キーワード（もっともヒットしやすい日本語の羅列にする）
+        // 1. 年齢をゆるいOR検索に（日本語を優先）
         let ageQuery = "";
         if (ageValue === "0-1") {
-            ageQuery = "(0歳 OR 1歳 OR 赤ちゃん OR 0-year-old)";
+            ageQuery = "(0歳 OR 1歳 OR 赤ちゃん)";
         } else if (ageValue === "2-3") {
-            ageQuery = "(2歳 OR 3歳 OR 幼児 OR 2-year-old)";
+            ageQuery = "(2歳 OR 3歳 OR 幼児)";
         } else if (ageValue === "4-5") {
-            ageQuery = "(4歳 OR 5歳 OR 児童 OR 4-year-old)";
+            ageQuery = "(4歳 OR 5歳 OR 児童)";
         }
     
-        // 2. タグ（もっとも一般的な言葉に変換）
-        let categoryQuery = selectedTag;
-        if(selectedTag === "音読") categoryQuery = "オノマトペ";
-        if(selectedTag === "カラフル") categoryQuery = "絵";
+        // 2. タグとフリーワード
+        // 自由入力があればそれを、なければ選択されているタグを使う
+        let mainKeyword = freeWord ? freeWord : selectedTag;
         
-        // 3. 【最重要】クエリの組み立て
-        // 「intitle:」を復活させますが、キーワードを絞ります
-        // 「subject:juvenile fiction」を付けることで大人向けを強制排除します
-        let searchTerms = `intitle:絵本 ${ageQuery} ${categoryQuery} ${freeWord}`;
-        
+        // 3. 検索キーワードの組み立て（intitle: を削除！）
+        // 「えほん」という言葉を添えるだけで、Googleに関連本を探させます
+        let searchTerms = `${ageQuery} ${mainKeyword} えほん`;
+    
         const query = encodeURIComponent(searchTerms);
-        // q= の後にジャンル指定を合体させる
-        const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=${query}+subject:juvenile+fiction&maxResults=20&printType=books&langRestrict=ja`;
-            
+        
+        // フィルタを最小限にしてヒット率を最大化
+        const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=20&printType=books&langRestrict=ja&orderBy=relevance`;
+    
+        console.log("検索中のURL:", apiUrl);
+        console.log("検索ワード明細:", searchTerms);
+    
         listContainer.innerHTML = `<div class="flex justify-center py-10"><div class="animate-spin h-8 w-8 border-4 border-orange-500 rounded-full border-t-transparent"></div></div>`;
     
         try {
             const response = await fetch(apiUrl);
             const data = await response.json();
-            console.log("検索中のURL:", apiUrl);
-            console.log("検索ワード明細:", searchTerms);
             
             if (!data.items || data.items.length === 0) {
                 listContainer.innerHTML = `<div class="text-center text-gray-500 py-10">
-                    本が見つかりませんでした。<br>
-                    <span class="text-xs">「指定しない」にしたり、言葉を短くしてみてね。</span>
+                    本が見つからなかったよ。<br>
+                    <span class="text-xs">言葉を短くするか、年齢を「指定しない」にしてみてね。</span>
                 </div>`;
                 return;
             }
     
-            // ページ数によるフィルタリング（150ページ以上に少し緩めます）
+            // ページ数でフィルタ（150ページ以上は大人向けと判断して除外）
             currentBooks = data.items.filter(book => {
                 const pc = book.volumeInfo.pageCount;
                 return !pc || pc < 150; 
@@ -124,7 +124,7 @@
             renderBooks();
     
         } catch (error) {
-            listContainer.innerHTML = "エラーが発生しました。時間を置いて試してね。";
+            listContainer.innerHTML = "エラーが発生しました。";
         }
     }
 
