@@ -75,35 +75,30 @@
         const freeWord = document.getElementById('freeWord').value;
         const listContainer = document.getElementById('bookList');
         
-        // 1. 年齢キーワード（もっともヒットしやすい日本語の羅列にする）
-        let ageQuery = "";
-        if (ageValue === "0-1") {
-            ageQuery = "0歳 1歳 赤ちゃん";
-        } else if (ageValue === "2-3") {
-            ageQuery = "2歳 3歳 幼児";
-        } else if (ageValue === "4-5") {
-            ageQuery = "4歳 5歳 児童";
-        }
+        // 1. 年齢（シンプルに）
+        let ageQuery = ageValue ? `${ageValue}歳` : "";
     
-        // 2. カテゴリのキーワード
+        // 2. タグ（もっとも一般的な言葉に変換）
         let categoryQuery = selectedTag;
-        if(selectedTag === "音読") categoryQuery = "オノマトペ ことばあそび";
-        if(selectedTag === "カラフル") categoryQuery = "色 赤ちゃん";
-        if(selectedTag === "図鑑") categoryQuery = "図鑑 子供";
-    
-        // 3. 全体クエリの組み立て（複雑なコマンドを使わず、単語を並べる）
-        // 検索窓が空なら「絵本」をメインに、何か入っていればそれをメインにする
-        let searchTerms = `絵本 ${ageQuery} ${categoryQuery} ${freeWord}`;
+        if(selectedTag === "音読") categoryQuery = "オノマトペ";
+        if(selectedTag === "カラフル") categoryQuery = "絵";
+        
+        // 3. 【最重要】クエリの組み立て
+        // 「intitle:」を復活させますが、キーワードを絞ります
+        // 「subject:juvenile fiction」を付けることで大人向けを強制排除します
+        let searchTerms = `intitle:絵本 ${ageQuery} ${categoryQuery} ${freeWord}`;
         
         const query = encodeURIComponent(searchTerms);
-        // langRestrictを「ja」に、printTypeを「books」にするだけで十分です
-        const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=20&printType=books&langRestrict=ja`;
-    
+        // q= の後にジャンル指定を合体させる
+        const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=${query}+subject:juvenile+fiction&maxResults=20&printType=books&langRestrict=ja`;
+            
         listContainer.innerHTML = `<div class="flex justify-center py-10"><div class="animate-spin h-8 w-8 border-4 border-orange-500 rounded-full border-t-transparent"></div></div>`;
     
         try {
             const response = await fetch(apiUrl);
             const data = await response.json();
+            console.log("検索中のURL:", apiUrl);
+            console.log("検索ワード明細:", searchTerms);
             
             if (!data.items || data.items.length === 0) {
                 listContainer.innerHTML = `<div class="text-center text-gray-500 py-10">
