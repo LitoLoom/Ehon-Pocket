@@ -13,12 +13,12 @@
     <div class="max-w-md mx-auto p-4">
         <header class="text-center py-6">
             <h1 class="text-3xl font-black text-orange-600 tracking-tight">📚 えほんポケット</h1>
-            <p class="text-xs text-orange-400 mt-1 font-bold">読み聞かせ管理 & おすすめ検索</p>
+            <p class="text-xs text-orange-400 mt-1 font-bold">楽天ブックス高精度検索</p>
         </header>
 
         <div class="bg-white p-5 rounded-2xl shadow-sm mb-6 border-b-4 border-orange-200">
-            <label class="block text-sm font-bold text-gray-700 mb-3">お子様の年齢</label>
-            <select id="age" class="w-full border-2 border-orange-100 p-2 rounded-xl mb-4 focus:outline-none focus:border-orange-500 transition-all">
+            <label class="block text-sm font-bold text-gray-700 mb-3">お子さまの年齢</label>
+            <select id="age" class="w-full border-2 border-orange-100 p-2 rounded-xl mb-4 focus:outline-none focus:border-orange-500 transition-all text-sm">
                 <option value="">指定しない</option>
                 <option value="0-1">0～1歳（赤ちゃん）</option>
                 <option value="2-3">2～3歳（いろいろ覚える）</option>
@@ -29,9 +29,7 @@
             <input id="freeWord" type="text" placeholder="例：アンパンマン、消防車..." class="w-full border-2 border-orange-100 p-2 rounded-xl mb-4 focus:outline-none focus:border-orange-500 text-sm">
         
             <label class="block text-sm font-bold text-gray-700 mb-3">タグで絞り込む</label>
-            <div id="tagContainer" class="flex flex-wrap gap-2 mb-5">
-                <!-- JSでボタンが生成されます -->
-            </div>
+            <div id="tagContainer" class="flex flex-wrap gap-2 mb-5"></div>
         
             <button onclick="searchBooks()" class="w-full bg-orange-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-orange-200 hover:bg-orange-600 active:transform active:scale-95 transition-all">
                 おすすめを見つける
@@ -39,26 +37,25 @@
         </div>
 
         <div id="bookList" class="space-y-4">
-            <div class="text-center text-gray-400 mt-10">上の条件を選んで検索してね！</div>
+            <div class="text-center text-gray-400 mt-10">条件を選んで「おすすめ」をタップ！</div>
         </div>
     </div>
 
 <script>
-    const tags = ["おまかせ", "のりもの", "いきもの", "たべもの", "おやすみ", "わらえる", "ぼうけん", "ことば・音", "しつけ"];
+    // ★ここにあなたの楽天アプリIDを入れてください
+    const RAKUTEN_APP_ID = "8420ae2b-eb02-49da-89d9-2e9c35118f94"; 
+
+    const tags = ["おまかせ", "のりもの", "いきもの", "たべもの", "おやすみ", "わらえる", "ことば・音", "しつけ"];
     let selectedTag = "おまかせ";
     let readList = JSON.parse(localStorage.getItem('readBooks') || '[]');
     let currentBooks = [];
 
-    // タグボタンの生成
     const tagContainer = document.getElementById('tagContainer');
     tags.forEach(tag => {
         const btn = document.createElement('button');
         btn.innerText = tag;
         btn.className = `px-4 py-2 rounded-full border-2 border-orange-100 text-sm font-bold transition-all ${tag === selectedTag ? 'tag-active' : 'bg-white text-orange-500'}`;
-        btn.onclick = () => {
-            selectedTag = tag;
-            updateTagUI();
-        };
+        btn.onclick = () => { selectedTag = tag; updateTagUI(); };
         tagContainer.appendChild(btn);
     });
 
@@ -73,54 +70,56 @@
         const freeWord = document.getElementById('freeWord').value;
         const listContainer = document.getElementById('bookList');
         
-        // 1. 年齢のOR検索クエリ組み立て
+        // 楽天API用の年齢・タグワード変換
         let ageQuery = "";
-        if (ageValue === "0-1") ageQuery = "(0歳 OR 1歳 OR 赤ちゃん)";
-        else if (ageValue === "2-3") ageQuery = "(2歳 OR 3歳 OR 幼児)";
-        else if (ageValue === "4-5") ageQuery = "(4歳 OR 5歳 OR 児童)";
+        if (ageValue === "0-1") ageQuery = "0歳 1歳 赤ちゃん";
+        else if (ageValue === "2-3") ageQuery = "2歳 3歳 幼児";
+        else if (ageValue === "4-5") ageQuery = "4歳 5歳 児童";
 
-        // 2. タグに応じた検索キーワードの変換
-        let categoryQuery = "";
+        let tagQuery = "";
         if (selectedTag !== "おまかせ") {
-            if (selectedTag === "のりもの") categoryQuery = "(電車 OR くるま OR 働く車)";
-            else if (selectedTag === "いきもの") categoryQuery = "(動物 OR 虫 OR 恐竜)";
-            else if (selectedTag === "たべもの") categoryQuery = "(お菓子 OR 料理 OR 食べ物)";
-            else if (selectedTag === "おやすみ") categoryQuery = "(寝かしつけ OR ねんね OR 夜)";
-            else if (selectedTag === "わらえる") categoryQuery = "(おもしろい OR ユーモア OR 笑える)";
-            else if (selectedTag === "ぼうけん") categoryQuery = "(冒険 OR 魔法 OR おばけ)";
-            else if (selectedTag === "ことば・音") categoryQuery = "(オノマトペ OR リズム OR 擬音語)";
-            else if (selectedTag === "しつけ") categoryQuery = "(生活習慣 OR 挨拶 OR トイレ OR はみがき)";
+            const tagMap = {
+                "のりもの": "電車 くるま 働く車",
+                "いきもの": "動物 虫 恐竜",
+                "たべもの": "お菓子 料理 食べ物",
+                "おやすみ": "寝かしつけ ねんね 夜",
+                "わらえる": "おもしろい 笑える",
+                "ことば・音": "オノマトペ リズム",
+                "しつけ": "挨拶 トイレ はみがき"
+            };
+            tagQuery = tagMap[selectedTag] || "";
         }
 
-        // 3. 検索キーワードの組み立て
-        let searchTerms = `${ageQuery} ${categoryQuery} ${freeWord} えほん`.trim().replace(/\s+/g, ' ');
-        const query = encodeURIComponent(searchTerms);
+        // キーワードの合体
+        const fullKeyword = `${ageQuery} ${tagQuery} ${freeWord}`.trim();
         
-        const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=20&printType=books&langRestrict=ja&orderBy=relevance`;
-    
-        console.log("検索ワード明細:", searchTerms);
-    
+        // 楽天ブックスAPIのURL組み立て
+        // booksGenreId: '001005' が「児童書・図鑑・絵本」
+        const baseUrl = "https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404";
+        const params = new URLSearchParams({
+            applicationId: RAKUTEN_APP_ID,
+            title: fullKeyword || "絵本",
+            booksGenreId: "001005", 
+            sort: "sales", // 売れている順（ハズレが少ない）
+            hits: 20,
+            format: "json"
+        });
+
         listContainer.innerHTML = `<div class="flex justify-center py-10"><div class="animate-spin h-8 w-8 border-4 border-orange-500 rounded-full border-t-transparent"></div></div>`;
     
         try {
-            const response = await fetch(apiUrl);
+            const response = await fetch(`${baseUrl}?${params}`);
             const data = await response.json();
             
-            if (!data.items || data.items.length === 0) {
-                listContainer.innerHTML = `<div class="text-center text-gray-500 py-10">本が見つからなかったよ。<br><span class="text-xs">言葉を短くするか、年齢を「指定しない」にしてね。</span></div>`;
+            if (!data.Items || data.Items.length === 0) {
+                listContainer.innerHTML = `<div class="text-center text-gray-500 py-10">楽天で見つかりませんでした。<br><span class="text-xs">言葉を短くしてみてね。</span></div>`;
                 return;
             }
     
-            // ページ数でフィルタ（150ページ以上を除外）
-            currentBooks = data.items.filter(book => {
-                const pc = book.volumeInfo.pageCount;
-                return !pc || pc < 150; 
-            });
-    
+            currentBooks = data.Items.map(item => item.Item);
             renderBooks();
-    
         } catch (error) {
-            listContainer.innerHTML = "エラーが発生しました。";
+            listContainer.innerHTML = "エラーが発生しました。ID設定を確認してね。";
         }
     }
 
@@ -129,25 +128,28 @@
         listContainer.innerHTML = "";
 
         currentBooks.forEach(book => {
-            const info = book.volumeInfo;
-            const bookId = book.id;
-            const isRead = readList.includes(bookId);
-            const thumbnail = info.imageLinks ? info.imageLinks.thumbnail.replace('http:', 'https:') : 'https://via.placeholder.com/128x180?text=No+Image';
+            const isRead = readList.includes(book.isbn);
+            // 楽天は画像サイズが選べる (_ex=128x128 など)
+            const thumbnail = book.largeImageUrl || 'https://via.placeholder.com/128x180?text=No+Image';
 
             const card = document.createElement('div');
-            card.id = `card-${bookId}`;
+            card.id = `card-${book.isbn}`;
             card.className = `bg-white p-4 rounded-2xl shadow-sm flex gap-4 border-2 transition-all ${isRead ? 'bg-green-50 border-green-200' : 'border-transparent'}`;
             card.innerHTML = `
                 <img src="${thumbnail}" class="w-24 h-32 object-cover rounded-lg shadow-sm">
-                <div class="flex-1 flex flex-col justify-between">
+                <div class="flex-1 flex flex-col justify-between text-left">
                     <div>
-                        <h3 class="font-bold text-gray-800 text-base mb-1 line-clamp-2">${info.title}</h3>
-                        <p class="text-xs text-gray-500">${info.authors ? info.authors[0] : '不明'}</p>
+                        <h3 class="font-bold text-gray-800 text-sm mb-1 line-clamp-2">${book.title}</h3>
+                        <p class="text-[10px] text-gray-500">${book.author}</p>
+                        <p class="text-[10px] text-orange-500 font-bold mt-1">${book.itemPrice}円</p>
                     </div>
                     <div class="flex gap-2 mt-2">
-                        <button onclick="toggleRead('${bookId}')" id="btn-${bookId}" class="flex-1 text-xs py-2 rounded-lg font-bold transition-all ${isRead ? 'bg-green-500 text-white' : 'bg-orange-100 text-orange-600'}">
+                        <button onclick="toggleRead('${book.isbn}')" id="btn-${book.isbn}" class="flex-1 text-xs py-2 rounded-lg font-bold transition-all ${isRead ? 'bg-green-500 text-white' : 'bg-orange-100 text-orange-600'}">
                             ${isRead ? '✓ 読んだ' : '未読'}
                         </button>
+                        <a href="${book.itemUrl}" target="_blank" class="bg-gray-100 text-gray-400 p-2 rounded-lg">
+                            🛒
+                        </a>
                     </div>
                 </div>
             `;
@@ -156,16 +158,10 @@
     }
 
     function toggleRead(id) {
-        if (readList.includes(id)) {
-            readList = readList.filter(item => item !== id);
-        } else {
-            readList.push(id);
-        }
+        readList.includes(id) ? readList = readList.filter(i => i !== id) : readList.push(id);
         localStorage.setItem('readBooks', JSON.stringify(readList));
-
         const card = document.getElementById(`card-${id}`);
         const btn = document.getElementById(`btn-${id}`);
-        
         if (readList.includes(id)) {
             card.classList.add('bg-green-50', 'border-green-200');
             btn.className = "flex-1 text-xs py-2 rounded-lg font-bold bg-green-500 text-white";
@@ -176,12 +172,8 @@
             btn.innerText = "未読";
         }
     }
-
-    // エンターキーで検索実行
-    document.getElementById('freeWord').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') searchBooks();
-    });
+    
+    document.getElementById('freeWord').addEventListener('keypress', (e) => { if (e.key === 'Enter') searchBooks(); });
 </script>    
-
 </body>
 </html>
