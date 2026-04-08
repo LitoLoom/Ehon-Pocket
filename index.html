@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>えほんポケット</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .tag-active { background-color: #f97316; color: white; border-color: #f97316; }
+    </style>
+</head>
+<body class="bg-orange-50 min-h-screen pb-20">
+    <div class="max-w-md mx-auto p-4">
+        <header class="text-center py-6">
+            <h1 class="text-3xl font-black text-orange-600 tracking-tight">📚 えほんポケット</h1>
+            <p class="text-xs text-orange-400 mt-1 font-bold">読み聞かせ管理 & おすすめ検索</p>
+        </header>
+        
+        <div class="bg-white p-5 rounded-2xl shadow-sm mb-6 border-b-4 border-orange-200">
+            <label class="block text-sm font-bold text-gray-700 mb-3">お子様の年齢</label>
+            <select id="age" class="w-full border-2 border-orange-100 p-2 rounded-xl mb-4 focus:outline-none focus:border-orange-500 transition-all">
+                <option value="0歳">0歳児向け</option>
+                <option value="1歳">1歳児向け</option>
+                <option value="2歳">2歳児向け</option>
+                <option value="3歳">3歳児向け</option>
+                <option value="4歳">4歳児向け</option>
+                <option value="5歳">5歳児向け</option>
+            </select>
+
+            <label class="block text-sm font-bold text-gray-700 mb-3">いまの気分・興味</label>
+            <div id="tagContainer" class="flex flex-wrap gap-2 mb-5">
+                </div>
+
+            <button onclick="searchBooks()" class="w-full bg-orange-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-orange-200 hover:bg-orange-600 active:transform active:scale-95 transition-all">
+                おすすめを見つける
+            </button>
+        </div>
+
+        <div id="bookList" class="space-y-4">
+            <div class="text-center text-gray-400 mt-10">上の条件を選んで検索してね！</div>
+        </div>
+    </div>
+
+    <script>
+        const tags = ["乗り物", "動物", "食べ物", "カラフル", "図鑑", "音読"];
+        let selectedTag = "乗り物";
+        let readList = JSON.parse(localStorage.getItem('readBooks') || '[]');
+
+        // タグボタンの生成
+        const tagContainer = document.getElementById('tagContainer');
+        tags.forEach(tag => {
+            const btn = document.createElement('button');
+            btn.innerText = tag;
+            btn.className = `px-4 py-2 rounded-full border-2 border-orange-100 text-sm font-bold transition-all ${tag === selectedTag ? 'tag-active' : 'bg-white text-orange-500'}`;
+            btn.onclick = () => {
+                selectedTag = tag;
+                updateTagUI();
+            };
+            tagContainer.appendChild(btn);
+        });
+
+        function updateTagUI() {
+            Array.from(tagContainer.children).forEach(btn => {
+                if (btn.innerText === selectedTag) {
+                    btn.classList.add('tag-active');
+                    btn.classList.remove('bg-white', 'text-orange-500');
+                } else {
+                    btn.classList.remove('tag-active');
+                    btn.classList.add('bg-white', 'text-orange-500');
+                }
+            });
+        }
+
+        async function searchBooks() {
+            const age = document.getElementById('age').value;
+            const listContainer = document.getElementById('bookList');
+            
+            // カテゴリ検索を強化するためのキーワード調整
+            let categoryQuery = selectedTag;
+            if(selectedTag === "音読") categoryQuery = "ことばあそび オノマトペ";
+            if(selectedTag === "カラフル") categoryQuery = "赤ちゃん 絵本 色";
+
+            const query = encodeURIComponent(`絵本 ${age} ${categoryQuery}`);
+            listContainer.innerHTML = `
+                <div class="flex justify-center py-10">
+                    <div class="animate-spin h-8 w-8 border-4 border-orange-500 rounded-full border-t-transparent"></div>
+                </div>`;
+
+            try {
+                const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=12&orderBy=relevance`);
+                const data = await response.json();
+                
+                listContainer.innerHTML = "";
+                if (!data.items) {
+                    listContainer.innerHTML = "見つかりませんでした。条件を変えてみてね。";
+                    return;
+                }
+
+                data.items.forEach(book => {
+                    const info = book.volumeInfo;
+                    const bookId = book.id;
+                    const isRead = readList.includes(bookId);
+                    const thumbnail = info.imageLinks ? info.imageLinks.thumbnail.replace('http:', 'https:') : 'https://via.placeholder.com/128x180?text=No+Image';
+
+                    const card = document.createElement('div');
+                    card.className = `bg-white p-4 rounded-2xl shadow-sm flex gap-4 transition-all ${isRead ? 'bg-green-50 border-2 border-green-200' : 'border-2 border-transparent'}`;
+                    card.innerHTML = `
+                        <img src="${thumbnail}" class="w-24 h-32 object-cover rounded-lg shadow-sm">
+                        <div class="flex-1 flex flex-col justify-between">
+                            <div>
+                                <h3 class="font-bold text-gray-800 text-base leading-tight mb-1">${info.title}</h3>
+                                <p class="text-xs text-gray-500 line-clamp-1">${info.authors ? info.authors[0] : '不明'}</p>
+                            </div>
+                            <div class="flex gap-2 mt-2">
+                                <button onclick="toggleRead('${bookId}')" class="flex-1 text-xs py-2 rounded-lg font-bold transition-all ${isRead ? 'bg-green-500 text-white' : 'bg-orange-100 text-orange-600 hover:bg-orange-200'}">
+                                    ${isRead ? '✓ 読んだ' : '未読'}
+                                </button>
+                                <button onclick="searchSimilar('${info.title}')" class="bg-gray-100 text-gray-500 p-2 rounded-lg hover:bg-gray-200">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    listContainer.appendChild(card);
+                });
+            } catch (error) {
+                listContainer.innerHTML = "検索中にエラーが起きたよ。";
+            }
+        }
+
+        function toggleRead(id) {
+            if (readList.includes(id)) {
+                readList = readList.filter(item => item !== id);
+            } else {
+                readList.push(id);
+            }
+            localStorage.setItem('readBooks', JSON.stringify(readList));
+            // 部分的な書き換えが理想ですが、簡単のため再描画
+            renderStateUpdate(id);
+        }
+
+        // カードの状態だけ更新する簡易関数
+        function renderStateUpdate(id) {
+            searchBooks(); 
+        }
+
+        // 「似た作風（同じカテゴリ）」を探す
+        function searchSimilar(title) {
+            // タイトルから特徴を抜いて再検索
+            selectedTag = title.split(' ')[0].substring(0, 5); 
+            searchBooks();
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+    </script>
+</body>
+</html>
