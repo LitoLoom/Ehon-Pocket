@@ -13,7 +13,7 @@
     <div class="max-w-md mx-auto p-4">
         <header class="text-center py-6">
             <h1 class="text-3xl font-black text-orange-600 tracking-tight">📚 えほんポケット</h1>
-            <p class="text-xs text-orange-400 mt-1 font-bold">楽天ブックス高精度検索</p>
+            <p class="text-xs text-orange-400 mt-1 font-bold">楽天ブックスえほん検索</p>
         </header>
 
         <div class="bg-white p-5 rounded-2xl shadow-sm mb-6 border-b-4 border-orange-200">
@@ -72,9 +72,9 @@
         
         // 楽天API用の年齢・タグワード変換
         let ageQuery = "";
-        if (ageValue === "0-1") ageQuery = "0歳 1歳 赤ちゃん";
-        else if (ageValue === "2-3") ageQuery = "2歳 3歳 幼児";
-        else if (ageValue === "4-5") ageQuery = "4歳 5歳 児童";
+        if (ageValue === "0-1") ageQuery = "0歳 OR 1歳 OR 赤ちゃん";
+        else if (ageValue === "2-3") ageQuery = "2歳 OR 3歳 OR 幼児";
+        else if (ageValue === "4-5") ageQuery = "4歳 OR 5歳 OR 児童";
 
         let tagQuery = "";
         if (selectedTag !== "おまかせ") {
