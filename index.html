@@ -42,7 +42,7 @@
     </div>
 
 <script>
-    // ★ここにあなたの楽天アプリIDを入れてください
+    // ★楽天アプリID
     const RAKUTEN_APP_ID = "8420ae2b-eb02-49da-89d9-2e9c35118f94"; 
 
     const tags = ["おまかせ", "のりもの", "いきもの", "たべもの", "おやすみ", "わらえる", "ことば・音", "しつけ"];
@@ -93,31 +93,24 @@
         // キーワードの合体
         const fullKeyword = `${ageQuery} ${tagQuery} ${freeWord}`.trim();
         
-        // 楽天ブックスAPIのURL組み立て
-        // booksGenreId: '001005' が「児童書・図鑑・絵本」
+        // 修正版：URLを安全に組み立てる
         const baseUrl = "https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404";
-        const params = new URLSearchParams({
-            applicationId: RAKUTEN_APP_ID,
-            title: fullKeyword || "絵本",
-            booksGenreId: "001005", 
-            sort: "sales", // 売れている順（ハズレが少ない）
-            hits: 20,
-            format: "json"
-        });
+        const url = `${baseUrl}?applicationId=${RAKUTEN_APP_ID}&title=${encodeURIComponent(fullKeyword || "絵本")}&booksGenreId=001005&sort=sales&hits=20&format=json`;
 
         listContainer.innerHTML = `<div class="flex justify-center py-10"><div class="animate-spin h-8 w-8 border-4 border-orange-500 rounded-full border-t-transparent"></div></div>`;
     
         try {
-            const response = await fetch(`${baseUrl}?${params}`);
+            // URLSearchParamsを使わず、直接文字列で叩く（こちらの方が確実な場合があります）
+            const response = await fetch(url);
             const data = await response.json();
             
-            if (!data.Items || data.Items.length === 0) {
-                listContainer.innerHTML = `<div class="text-center text-gray-500 py-10">楽天で見つかりませんでした。<br><span class="text-xs">言葉を短くしてみてね。</span></div>`;
+            // エラーの詳細をコンソールに出す（デバッグ用）
+            if (data.error) {
+                console.error("楽天APIエラー原因:", data.error_description);
+                listContainer.innerHTML = `エラー: ${data.error_description}`;
                 return;
             }
-    
-            currentBooks = data.Items.map(item => item.Item);
-            renderBooks();
+
         } catch (error) {
             listContainer.innerHTML = "エラーが発生しました。ID設定を確認してね。";
         }
