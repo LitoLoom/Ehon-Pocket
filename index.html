@@ -17,13 +17,14 @@
         </header>
 
         <div class="bg-white p-5 rounded-2xl shadow-sm mb-6 border-b-4 border-orange-200">
+
             <label class="block text-sm font-bold text-gray-700 mb-3">お子様の年齢</label>
             <select id="age" class="w-full border-2 border-orange-100 p-2 rounded-xl mb-4 focus:outline-none focus:border-orange-500 transition-all">
                 <option value="">指定しない</option>
-                <option value="0歳 1歳 赤ちゃん">0～1歳（赤ちゃん）</option>
-                <option value="2歳 3歳 幼児">2～3歳（いろいろ覚える）</option>
-                <option value="4歳 5歳 児童">4～5歳（しっかりストーリー）</option>
-            </select>
+                <option value="0-1">0～1歳（赤ちゃん）</option>
+                <option value="2-3">2～3歳（いろいろ覚える）</option>
+                <option value="4-5">4～5歳（しっかりストーリー）</option>
+            </select>            
             <label class="block text-sm font-bold text-gray-700 mb-2">キーワードで探す</label>
             <input id="freeWord" type="text" placeholder="例：アンパンマン、消防車..." class="w-full border-2 border-orange-100 p-2 rounded-xl mb-4 focus:outline-none focus:border-orange-500 text-sm">
         
@@ -69,25 +70,36 @@
     let currentBooks = [];
 
     async function searchBooks() {
-        const age = document.getElementById('age').value;
+        const ageSelect = document.getElementById('age');
+        const ageValue = ageSelect.value;
         const freeWord = document.getElementById('freeWord').value;
         const listContainer = document.getElementById('bookList');
         
-        // タグごとの調整
+        // 1. 年齢をAPIが理解しやすい英語キーワードに変換
+        let ageQuery = "";
+        if (ageValue === "0-1") {
+            ageQuery = '"0 age" OR "1 age" OR "0 years old" OR "1 years old"';
+        } else if (ageValue === "2-3") {
+            ageQuery = '"2 age" OR "3 age" OR "2 years old" OR "3 years old"';
+        } else if (ageValue === "4-5") {
+            ageQuery = '"4 age" OR "5 age" OR "4 years old" OR "5 years old"';
+        }
+    
+        // 2. タグごとの調整
         let categoryQuery = selectedTag;
-        if(selectedTag === "音読") categoryQuery = "ことばあそび オノマトペ";
-        if(selectedTag === "カラフル") categoryQuery = "赤ちゃん 絵本 色";
+        if(selectedTag === "音読") categoryQuery = "オノマトペ";
+        if(selectedTag === "カラフル") categoryQuery = "board book color"; // 赤ちゃん向けはboard book(厚紙本)を指定すると精度UP
+    
+        // 3. 大人向け・研究本を徹底的に弾くためのマイナス検索
+        const excludeWords = "-解説 -研究 -ムック -指導書 -論文 -教材 -workbook";
         
-        // 【強化】大人向けの本を弾くための除外ワード
-        const excludeWords = "-解説 -研究 -ムック -大人向け -指導書 -画集";
+        // 4. キーワードの合体
+        // 「intitle:絵本」とすることで、タイトルに「絵本」が入っているものを優先
+        let searchTerms = `intitle:絵本 ${ageQuery} ${categoryQuery} ${freeWord} ${excludeWords}`;
         
-        // キーワードの組み立て
-        let searchTerms = `絵本 ${age} ${categoryQuery} ${freeWord} ${excludeWords}`;
-        
-        // printType=books を指定して雑誌(アンパンマンの付録雑誌など)を減らし、
-        // 児童書カテゴリに絞るクエリを追加
         const query = encodeURIComponent(searchTerms);
-        const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=15&printType=books&orderBy=relevance`;
+        // 児童書(juvenile)ジャンルを指定するフィルタを追加
+        const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=20&printType=books&langRestrict=ja&orderBy=relevance`;
     
         listContainer.innerHTML = `<div class="flex justify-center py-10"><div class="animate-spin h-8 w-8 border-4 border-orange-500 rounded-full border-t-transparent"></div></div>`;
     
@@ -96,17 +108,24 @@
             const data = await response.json();
             
             if (!data.items) {
-                listContainer.innerHTML = `<div class="text-center text-gray-500 py-10">見つからなかったよ。言葉を変えてみてね。</div>`;
+                listContainer.innerHTML = `<div class="text-center text-gray-500 py-10">見つからなかったよ。条件を少し減らしてみてね。</div>`;
                 return;
             }
     
-            currentBooks = data.items;
+            // さらに精度を上げるため、ページ数が100ページ以上のものは一覧から除外する（JavaScript側でのフィルタ）
+            currentBooks = data.items.filter(book => {
+                const pc = book.volumeInfo.pageCount;
+                return !pc || pc < 100; 
+            });
+    
             renderBooks();
     
         } catch (error) {
             listContainer.innerHTML = "エラーが発生しました。";
         }
     }
+
+
     
     // 描画だけを担当する関数（APIを叩かない）
     function renderBooks() {
