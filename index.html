@@ -78,11 +78,11 @@
         // 1. 年齢キーワード（もっともヒットしやすい日本語の羅列にする）
         let ageQuery = "";
         if (ageValue === "0-1") {
-            ageQuery = "0歳 1歳 赤ちゃん";
+            ageQuery = "(0歳 OR 1歳 OR 赤ちゃん OR 0-year-old)";
         } else if (ageValue === "2-3") {
-            ageQuery = "2歳 3歳 幼児";
+            ageQuery = "(2歳 OR 3歳 OR 幼児 OR 2-year-old)";
         } else if (ageValue === "4-5") {
-            ageQuery = "4歳 5歳 児童";
+            ageQuery = "(4歳 OR 5歳 OR 児童 OR 4-year-old)";
         }
     
         // 2. タグ（もっとも一般的な言葉に変換）
