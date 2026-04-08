@@ -43,9 +43,23 @@
     </div>
 
 <script>
+    
     // 1. タグの定義を更新
-    const tags = [ "のりもの", "いきもの", "しつけ", "おやすみ", "わらえる","たべもの", "ことば・音", "ぼうけん"];
-    let selectedTag = "のりもの";
+    // 「おまかせ」以外が選ばれている時だけ、キーワードを設定する
+    if (selectedTag !== "おまかせ") {
+        if (selectedTag === "しつけ") categoryQuery = "(生活習慣 OR 挨拶 OR トイレ OR はみがき)";
+        else if (selectedTag === "おやすみ") categoryQuery = "(寝かしつけ OR ねんね OR 夜)";
+        else if (selectedTag === "わらえる") categoryQuery = "(おもしろい OR ユーモア OR 笑える)";
+        else if (selectedTag === "のりもの") categoryQuery = "(電車 OR くるま OR 働く車)";
+        else if (selectedTag === "いきもの") categoryQuery = "(動物 OR 虫 OR 恐竜)";
+        else if (selectedTag === "たべもの") categoryQuery = "(お菓子 OR 料理 OR 食べ物)";
+        else if (selectedTag === "ことば・音") categoryQuery = "(オノマトペ OR リズム OR 擬音語)";
+        else if (selectedTag === "ぼうけん") categoryQuery = "(冒険 OR 魔法 OR おばけ)";
+    } else {
+        // 「おまかせ」の時は、ヒットしやすそうな広めのワードをこっそり入れるか、空にする
+        categoryQuery = "人気"; 
+    }
+    let selectedTag = "おまかせ";
     let readList = JSON.parse(localStorage.getItem('readBooks') || '[]');
 
     // タグボタンの生成
